@@ -598,28 +598,76 @@
         </div>
     </div>
 
-    <!-- Fotoğraf Ekleme Modalı -->
-    <div id="photoModal" class="modal">
+    <!-- Düzenleme Modalı -->
+    <div id="editModal" class="modal">
         <div class="modal-content">
-            <h2>Fotoğraf Ekle</h2>
-            <p style="color: #666; margin-bottom: 20px;" id="photoModalProjectName"></p>
-            <div class="form-group">
-                <label>Yeni Fotoğraflar</label>
-                <div class="file-upload-area" id="addPhotoUploadArea" onclick="document.getElementById('addPhotoInput').click()">
-                    <div class="upload-icon">📸</div>
-                    <p><strong>Fotoğraf Yükle</strong></p>
-                    <p style="color: #888; font-size: 0.9em;">Tıkla veya sürükle-bırak</p>
-                    <p style="color: #667eea; font-size: 0.85em; margin-top: 10px;">
-                        ⚡ Fotoğraflar otomatik olarak optimize edilir
-                    </p>
+            <h2>Proje Düzenle</h2>
+            <form id="editForm">
+                <div class="form-group">
+                    <label>İş Başlığı</label>
+                    <input type="text" id="editProjectName" placeholder="Örn: Resepsiyon Yenileme" required>
                 </div>
-                <input type="file" id="addPhotoInput" multiple accept="image/*">
-                <div id="addPhotoPreview" class="photo-preview"></div>
-            </div>
-            <div class="modal-buttons">
-                <button type="button" class="btn btn-secondary" onclick="closePhotoModal()">İptal</button>
-                <button type="button" class="btn btn-primary" onclick="saveNewPhotos()">Ekle</button>
-            </div>
+                <div class="form-group job-type-bakim" id="editJobTypeBakimGroup">
+                    <label>İşin Türü (Bakım & Onarım)</label>
+                    <select id="editProjectJobTypeBakim">
+                        <option value="">Seçiniz</option>
+                        <option value="Elektrik Sistemleri">Elektrik Sistemleri</option>
+                        <option value="Mekanik Sistemler">Mekanik Sistemler</option>
+                        <option value="Pompa Sistemleri">Pompa Sistemleri</option>
+                        <option value="HVAC (İklimlendirme & Havalandırma)">HVAC (İklimlendirme & Havalandırma)</option>
+                        <option value="Tesisat (Su, Atık Su, Gaz)">Tesisat (Su, Atık Su, Gaz)</option>
+                        <option value="Güvenlik & Yangın Sistemleri">Güvenlik & Yangın Sistemleri</option>
+                        <option value="Dış Mekan & Ahşap Yüzeyler">Dış Mekan & Ahşap Yüzeyler</option>
+                        <option value="Boya & Tamirat İşlemleri">Boya & Tamirat İşlemleri</option>
+                        <option value="Mobilya & Döşeme">Mobilya & Döşeme</option>
+                        <option value="Donatı & Ekipman">Donatı & Ekipman</option>
+                        <option value="Drenaj & Vidanjör">Drenaj & Vidanjör</option>
+                    </select>
+                </div>
+                <div class="form-group job-type-startup" id="editJobTypeStartupGroup" style="display: none;">
+                    <label>İşin Türü (Start Up)</label>
+                    <select id="editProjectJobTypeStartup">
+                        <option value="">Seçiniz</option>
+                        <option value="Animasyon">Animasyon</option>
+                        <option value="Bahçe">Bahçe</option>
+                        <option value="Bilgi İşlem">Bilgi İşlem</option>
+                        <option value="F&B Servis">F&B Servis</option>
+                        <option value="Güvenlik">Güvenlik</option>
+                        <option value="Housekeeping">Housekeeping</option>
+                        <option value="Kalite">Kalite</option>
+                        <option value="Linen">Linen</option>
+                        <option value="Mutfak">Mutfak</option>
+                        <option value="Önbüro">Önbüro</option>
+                        <option value="Pastane">Pastane</option>
+                        <option value="Personel Lojmanı">Personel Lojmanı</option>
+                        <option value="Spa">Spa</option>
+                        <option value="Steward">Steward</option>
+                        <option value="Uniforma">Uniforma</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Toplam Maliyet (₺)</label>
+                    <input type="number" id="editProjectCost" placeholder="Örn: 50000" required>
+                </div>
+                <div class="form-group">
+                    <label>Mevcut Fotoğraflar</label>
+                    <div id="editExistingPhotos" class="photo-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>Yeni Fotoğraf Ekle</label>
+                    <div class="file-upload-area" id="editUploadArea" onclick="document.getElementById('editPhotoInput').click()">
+                        <div class="upload-icon">📸</div>
+                        <p><strong>Fotoğraf Yükle</strong></p>
+                        <p style="color: #888; font-size: 0.9em;">Tıkla veya sürükle-bırak</p>
+                    </div>
+                    <input type="file" id="editPhotoInput" multiple accept="image/*">
+                    <div id="editPhotoPreview" class="photo-preview"></div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -639,7 +687,8 @@
         let activeTab = 1; // 1: Bakım & Onarım, 2: Start Up
         let currentPhotos = []; // { dataUrl, file } - önizleme ve yükleme için
         let currentProjectId = null;
-        let newPhotosToAdd = [];
+        let editExistingPhotoUrls = []; // Düzenlemede mevcut fotoğraflar (silinenler çıkarılır)
+        let editNewPhotosToAdd = [];   // Düzenlemede yeni eklenen fotoğraflar
 
         async function login(password) {
             const { data, error } = await supabaseClient
@@ -768,41 +817,114 @@
             updatePhotoPreview();
         }
 
-        // Fotoğraf Ekleme Modal İşlemleri
-        function openPhotoModal(projectId) {
+        // Düzenleme Modal İşlemleri
+        function openEditModal(projectId) {
             currentProjectId = projectId;
             const project = projects.find(p => p.id === projectId);
-            document.getElementById('photoModalProjectName').textContent = project ? project.name : '';
-            document.getElementById('photoModal').classList.add('active');
-            newPhotosToAdd = [];
-            updateAddPhotoPreview();
+            if (!project) return;
+
+            document.getElementById('editProjectName').value = project.name;
+            document.getElementById('editProjectCost').value = project.cost;
+            document.getElementById('editJobTypeBakimGroup').style.display = project.job_class === 1 ? 'block' : 'none';
+            document.getElementById('editJobTypeStartupGroup').style.display = project.job_class === 2 ? 'block' : 'none';
+            document.getElementById('editProjectJobTypeBakim').value = project.job_class === 1 ? (project.job_type || '') : '';
+            document.getElementById('editProjectJobTypeStartup').value = project.job_class === 2 ? (project.job_type || '') : '';
+
+            editExistingPhotoUrls = [...(Array.isArray(project.photos) ? project.photos : [])];
+            editNewPhotosToAdd = [];
+            document.getElementById('editPhotoInput').value = '';
+            updateEditExistingPhotos();
+            updateEditPhotoPreview();
+            document.getElementById('editModal').classList.add('active');
         }
 
-        function closePhotoModal() {
-            document.getElementById('photoModal').classList.remove('active');
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
             currentProjectId = null;
-            newPhotosToAdd = [];
-            updateAddPhotoPreview();
+            editExistingPhotoUrls = [];
+            editNewPhotosToAdd = [];
         }
 
-        async function saveNewPhotos() {
-            if (newPhotosToAdd.length === 0) {
-                alert('Lütfen en az bir fotoğraf seçin');
-                return;
+        function updateEditExistingPhotos() {
+            const container = document.getElementById('editExistingPhotos');
+            container.innerHTML = editExistingPhotoUrls.map((url, index) => `
+                <div class="photo-preview-item">
+                    <img src="${escapeHtml(url)}" alt="Fotoğraf ${index + 1}">
+                    <button class="remove-photo" onclick="removeEditExistingPhoto(${index})" type="button">×</button>
+                    <span class="photo-order">${index + 1}</span>
+                </div>
+            `).join('');
+        }
+
+        function removeEditExistingPhoto(index) {
+            editExistingPhotoUrls.splice(index, 1);
+            updateEditExistingPhotos();
+        }
+
+        function updateEditPhotoPreview() {
+            const preview = document.getElementById('editPhotoPreview');
+            preview.innerHTML = editNewPhotosToAdd.map((photo, index) => `
+                <div class="photo-preview-item">
+                    <img src="${photo.dataUrl}" alt="Yeni ${index + 1}">
+                    <button class="remove-photo" onclick="removeEditNewPhoto(${index})" type="button">×</button>
+                    <span class="photo-order">Yeni ${index + 1}</span>
+                </div>
+            `).join('');
+        }
+
+        function removeEditNewPhoto(index) {
+            editNewPhotosToAdd.splice(index, 1);
+            updateEditPhotoPreview();
+        }
+
+        const editPhotoInput = document.getElementById('editPhotoInput');
+        const editUploadArea = document.getElementById('editUploadArea');
+        editPhotoInput.addEventListener('change', function(e) { handleEditPhotos(e.target.files); });
+        editUploadArea.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+        editUploadArea.addEventListener('dragleave', function(e) { e.preventDefault(); this.classList.remove('dragover'); });
+        editUploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            handleEditPhotos(e.dataTransfer.files);
+        });
+
+        async function handleEditPhotos(files) {
+            for (const file of Array.from(files)) {
+                if (file.type.startsWith('image/')) {
+                    const compressed = await compressImage(file);
+                    editNewPhotosToAdd.push({ dataUrl: compressed, file });
+                    updateEditPhotoPreview();
+                }
             }
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             const project = projects.find(p => p.id === currentProjectId);
             if (!project) return;
 
-            const submitBtn = document.querySelector('#photoModal .btn-primary');
+            const totalPhotos = editExistingPhotoUrls.length + editNewPhotosToAdd.length;
+            if (totalPhotos === 0) {
+                alert('En az bir fotoğraf olmalıdır');
+                return;
+            }
+
+            const name = document.getElementById('editProjectName').value.trim();
+            const cost = parseFloat(document.getElementById('editProjectCost').value);
+            const job_type = (project.job_class === 1
+                ? document.getElementById('editProjectJobTypeBakim').value
+                : document.getElementById('editProjectJobTypeStartup').value
+            ).trim() || null;
+
+            const submitBtn = this.querySelector('button[type="submit"]');
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Yükleniyor...';
+            submitBtn.textContent = 'Kaydediliyor...';
 
             try {
-                const existingPhotos = Array.isArray(project.photos) ? project.photos : [];
-                const baseCount = existingPhotos.length;
                 const newUrls = [];
-                for (let i = 0; i < newPhotosToAdd.length; i++) {
-                    const item = newPhotosToAdd[i];
+                const baseCount = editExistingPhotoUrls.length;
+                for (let i = 0; i < editNewPhotosToAdd.length; i++) {
+                    const item = editNewPhotosToAdd[i];
                     const blob = dataURLtoBlob(item.dataUrl);
                     const ext = item.file?.name?.match(/\.(jpe?g|png|webp)$/i) ? item.file.name.match(/\.(jpe?g|png|webp)$/i)[1] : 'jpg';
                     const path = `${currentProjectId}/${baseCount + i + 1}.${ext}`;
@@ -811,19 +933,38 @@
                     const { data: urlData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
                     newUrls.push(urlData.publicUrl);
                 }
-                const updatedPhotos = [...newUrls, ...existingPhotos];
-                const { error } = await supabaseClient.from('projects').update({ photos: updatedPhotos, updated_by: currentUserName || null }).eq('id', currentProjectId);
+                const finalPhotos = [...newUrls, ...editExistingPhotoUrls];
+
+                const oldPhotos = Array.isArray(project.photos) ? project.photos : [];
+                const removedUrls = oldPhotos.filter(url => !editExistingPhotoUrls.includes(url));
+                if (removedUrls.length > 0) {
+                    const pathsToDelete = removedUrls.map(url => {
+                        const match = url.match(/\/bakim-photos\/(.+)$/);
+                        return match ? match[1] : null;
+                    }).filter(Boolean);
+                    if (pathsToDelete.length > 0) {
+                        await supabaseClient.storage.from(STORAGE_BUCKET).remove(pathsToDelete);
+                    }
+                }
+
+                const { error } = await supabaseClient.from('projects').update({
+                    name, cost, job_type, photos: finalPhotos, updated_by: currentUserName || null
+                }).eq('id', currentProjectId);
                 if (error) throw error;
-                project.photos = updatedPhotos;
+
+                project.name = name;
+                project.cost = cost;
+                project.job_type = job_type || '';
+                project.photos = finalPhotos;
                 renderProjects();
-                closePhotoModal();
+                closeEditModal();
             } catch (err) {
-                alert('Fotoğraf yüklenirken hata: ' + (err.message || err));
+                alert('Kaydetme hatası: ' + (err.message || err));
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Ekle';
+                submitBtn.textContent = 'Kaydet';
             }
-        }
+        });
 
         // Dosya Yükleme İşlemleri - Yeni İş
         const fileInput = document.getElementById('fileInput');
@@ -900,60 +1041,6 @@
         function removePhoto(index) {
             currentPhotos.splice(index, 1);
             updatePhotoPreview();
-        }
-
-        // Dosya Yükleme İşlemleri - Fotoğraf Ekleme
-        const addPhotoInput = document.getElementById('addPhotoInput');
-        const addPhotoUploadArea = document.getElementById('addPhotoUploadArea');
-
-        addPhotoInput.addEventListener('change', function(e) {
-            handleAddPhotos(e.target.files);
-        });
-
-        addPhotoUploadArea.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('dragover');
-        });
-
-        addPhotoUploadArea.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-        });
-
-        addPhotoUploadArea.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-            handleAddPhotos(e.dataTransfer.files);
-        });
-
-        function handleAddPhotos(files) {
-            handleAddPhotosAsync(Array.from(files));
-        }
-
-        async function handleAddPhotosAsync(fileArray) {
-            for (const file of fileArray) {
-                if (file.type.startsWith('image/')) {
-                    const compressed = await compressImage(file);
-                    newPhotosToAdd.push({ dataUrl: compressed, file });
-                    updateAddPhotoPreview();
-                }
-            }
-        }
-
-        function updateAddPhotoPreview() {
-            const preview = document.getElementById('addPhotoPreview');
-            preview.innerHTML = newPhotosToAdd.map((photo, index) => `
-                <div class="photo-preview-item">
-                    <img src="${photo.dataUrl}" alt="Fotoğraf ${index + 1}">
-                    <button class="remove-photo" onclick="removeAddPhoto(${index})" type="button">×</button>
-                    <span class="photo-order">${index + 1}</span>
-                </div>
-            `).join('');
-        }
-
-        function removeAddPhoto(index) {
-            newPhotosToAdd.splice(index, 1);
-            updateAddPhotoPreview();
         }
 
         // Form Submit - Yeni proje ekle
@@ -1060,7 +1147,7 @@
                         </div>
                         <div class="project-actions">
                             <div class="project-cost">${Number(project.cost).toLocaleString('tr-TR')} ₺</div>
-                            <button class="add-photo-btn" onclick="openPhotoModal(${project.id})">📷 Fotoğraf Ekle</button>
+                            <button class="add-photo-btn" onclick="openEditModal(${project.id})">✏️ Düzenle</button>
                             <button class="delete-project-btn" onclick="deleteProject(${project.id})">🗑️ Sil</button>
                         </div>
                     </div>
@@ -1078,8 +1165,8 @@
         document.getElementById('projectModal').addEventListener('click', function(e) {
             if (e.target === this) closeProjectModal();
         });
-        document.getElementById('photoModal').addEventListener('click', function(e) {
-            if (e.target === this) closePhotoModal();
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
         });
     </script>
 </body>
