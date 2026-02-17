@@ -305,6 +305,38 @@
             font-size: 0.8em;
         }
 
+        .photo-order-btns {
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            display: flex;
+            gap: 4px;
+            z-index: 5;
+        }
+
+        .photo-order-btns button {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-order-btns button:hover {
+            background: #667eea;
+        }
+
+        .photo-order-btns button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
         .modal-buttons {
             display: flex;
             gap: 15px;
@@ -650,8 +682,8 @@
                     <input type="number" id="editProjectCost" placeholder="Örn: 50000" required>
                 </div>
                 <div class="form-group">
-                    <label>Mevcut Fotoğraflar</label>
-                    <div id="editExistingPhotos" class="photo-preview"></div>
+                    <label>Fotoğraflar (Sıralamayı değiştirmek için ↑↓ kullanın, ilk sıradaki önce gösterilir)</label>
+                    <div id="editAllPhotos" class="photo-preview"></div>
                 </div>
                 <div class="form-group">
                     <label>Yeni Fotoğraf Ekle</label>
@@ -661,7 +693,6 @@
                         <p style="color: #888; font-size: 0.9em;">Tıkla veya sürükle-bırak</p>
                     </div>
                     <input type="file" id="editPhotoInput" multiple accept="image/*">
-                    <div id="editPhotoPreview" class="photo-preview"></div>
                 </div>
                 <div class="modal-buttons">
                     <button type="button" class="btn btn-secondary" onclick="closeEditModal()">İptal</button>
@@ -687,8 +718,7 @@
         let activeTab = 1; // 1: Bakım & Onarım, 2: Start Up
         let currentPhotos = []; // { dataUrl, file } - önizleme ve yükleme için
         let currentProjectId = null;
-        let editExistingPhotoUrls = []; // Düzenlemede mevcut fotoğraflar (silinenler çıkarılır)
-        let editNewPhotosToAdd = [];   // Düzenlemede yeni eklenen fotoğraflar
+        let editPhotoItems = []; // { type: 'existing', url } | { type: 'new', dataUrl, file } - sıralanabilir
 
         async function login(password) {
             const { data, error } = await supabaseClient
@@ -830,51 +860,45 @@
             document.getElementById('editProjectJobTypeBakim').value = project.job_class === 1 ? (project.job_type || '') : '';
             document.getElementById('editProjectJobTypeStartup').value = project.job_class === 2 ? (project.job_type || '') : '';
 
-            editExistingPhotoUrls = [...(Array.isArray(project.photos) ? project.photos : [])];
-            editNewPhotosToAdd = [];
+            editPhotoItems = (Array.isArray(project.photos) ? project.photos : []).map(url => ({ type: 'existing', url }));
             document.getElementById('editPhotoInput').value = '';
-            updateEditExistingPhotos();
-            updateEditPhotoPreview();
+            updateEditAllPhotos();
             document.getElementById('editModal').classList.add('active');
         }
 
         function closeEditModal() {
             document.getElementById('editModal').classList.remove('active');
             currentProjectId = null;
-            editExistingPhotoUrls = [];
-            editNewPhotosToAdd = [];
+            editPhotoItems = [];
         }
 
-        function updateEditExistingPhotos() {
-            const container = document.getElementById('editExistingPhotos');
-            container.innerHTML = editExistingPhotoUrls.map((url, index) => `
+        function updateEditAllPhotos() {
+            const container = document.getElementById('editAllPhotos');
+            container.innerHTML = editPhotoItems.map((item, index) => {
+                const src = item.type === 'existing' ? item.url : item.dataUrl;
+                return `
                 <div class="photo-preview-item">
-                    <img src="${escapeHtml(url)}" alt="Fotoğraf ${index + 1}">
-                    <button class="remove-photo" onclick="removeEditExistingPhoto(${index})" type="button">×</button>
+                    <img src="${escapeHtml(src)}" alt="Fotoğraf ${index + 1}">
+                    <div class="photo-order-btns">
+                        <button type="button" onclick="moveEditPhoto(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="Yukarı">↑</button>
+                        <button type="button" onclick="moveEditPhoto(${index}, 1)" ${index === editPhotoItems.length - 1 ? 'disabled' : ''} title="Aşağı">↓</button>
+                    </div>
+                    <button class="remove-photo" onclick="removeEditPhoto(${index})" type="button">×</button>
                     <span class="photo-order">${index + 1}</span>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
-        function removeEditExistingPhoto(index) {
-            editExistingPhotoUrls.splice(index, 1);
-            updateEditExistingPhotos();
+        function moveEditPhoto(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= editPhotoItems.length) return;
+            [editPhotoItems[index], editPhotoItems[newIndex]] = [editPhotoItems[newIndex], editPhotoItems[index]];
+            updateEditAllPhotos();
         }
 
-        function updateEditPhotoPreview() {
-            const preview = document.getElementById('editPhotoPreview');
-            preview.innerHTML = editNewPhotosToAdd.map((photo, index) => `
-                <div class="photo-preview-item">
-                    <img src="${photo.dataUrl}" alt="Yeni ${index + 1}">
-                    <button class="remove-photo" onclick="removeEditNewPhoto(${index})" type="button">×</button>
-                    <span class="photo-order">Yeni ${index + 1}</span>
-                </div>
-            `).join('');
-        }
-
-        function removeEditNewPhoto(index) {
-            editNewPhotosToAdd.splice(index, 1);
-            updateEditPhotoPreview();
+        function removeEditPhoto(index) {
+            editPhotoItems.splice(index, 1);
+            updateEditAllPhotos();
         }
 
         const editPhotoInput = document.getElementById('editPhotoInput');
@@ -892,8 +916,8 @@
             for (const file of Array.from(files)) {
                 if (file.type.startsWith('image/')) {
                     const compressed = await compressImage(file);
-                    editNewPhotosToAdd.push({ dataUrl: compressed, file });
-                    updateEditPhotoPreview();
+                    editPhotoItems.push({ type: 'new', dataUrl: compressed, file });
+                    updateEditAllPhotos();
                 }
             }
         }
@@ -903,8 +927,7 @@
             const project = projects.find(p => p.id === currentProjectId);
             if (!project) return;
 
-            const totalPhotos = editExistingPhotoUrls.length + editNewPhotosToAdd.length;
-            if (totalPhotos === 0) {
+            if (editPhotoItems.length === 0) {
                 alert('En az bir fotoğraf olmalıdır');
                 return;
             }
@@ -921,22 +944,28 @@
             submitBtn.textContent = 'Kaydediliyor...';
 
             try {
-                const newUrls = [];
-                const baseCount = editExistingPhotoUrls.length;
-                for (let i = 0; i < editNewPhotosToAdd.length; i++) {
-                    const item = editNewPhotosToAdd[i];
-                    const blob = dataURLtoBlob(item.dataUrl);
-                    const ext = item.file?.name?.match(/\.(jpe?g|png|webp)$/i) ? item.file.name.match(/\.(jpe?g|png|webp)$/i)[1] : 'jpg';
-                    const path = `${currentProjectId}/${baseCount + i + 1}.${ext}`;
-                    const { error } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(path, blob, { upsert: true });
-                    if (error) throw error;
-                    const { data: urlData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-                    newUrls.push(urlData.publicUrl);
+                const finalPhotos = [];
+                const newUploadTimestamp = Date.now();
+                let newUploadIndex = 0;
+                for (let i = 0; i < editPhotoItems.length; i++) {
+                    const item = editPhotoItems[i];
+                    if (item.type === 'existing') {
+                        finalPhotos.push(item.url);
+                    } else {
+                        const blob = dataURLtoBlob(item.dataUrl);
+                        const ext = item.file?.name?.match(/\.(jpe?g|png|webp)$/i) ? item.file.name.match(/\.(jpe?g|png|webp)$/i)[1] : 'jpg';
+                        const path = `${currentProjectId}/new_${newUploadTimestamp}_${newUploadIndex}.${ext}`;
+                        newUploadIndex++;
+                        const { error } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(path, blob, { upsert: true });
+                        if (error) throw error;
+                        const { data: urlData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+                        finalPhotos.push(urlData.publicUrl);
+                    }
                 }
-                const finalPhotos = [...newUrls, ...editExistingPhotoUrls];
 
                 const oldPhotos = Array.isArray(project.photos) ? project.photos : [];
-                const removedUrls = oldPhotos.filter(url => !editExistingPhotoUrls.includes(url));
+                const keptUrls = editPhotoItems.filter(i => i.type === 'existing').map(i => i.url);
+                const removedUrls = oldPhotos.filter(url => !keptUrls.includes(url));
                 if (removedUrls.length > 0) {
                     const pathsToDelete = removedUrls.map(url => {
                         const match = url.match(/\/bakim-photos\/(.+)$/);
