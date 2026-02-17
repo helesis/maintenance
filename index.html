@@ -516,7 +516,40 @@
 
         .app-content { display: none; }
         .app-content.visible { display: block; }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .chart-card h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -544,6 +577,21 @@
         <div class="header">
             <h1>Bakım, Onarım & Start Up Projeleri</h1>
             <p style="margin: 15px 0; font-size: 1.1em;">2026 <span id="userBadge" class="user-badge"></span><button type="button" class="logout-btn" onclick="logout()">Çıkış</button></p>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Bakım & Onarım - Maliyet Dağılımı</h3>
+                <div class="chart-container">
+                    <canvas id="chartBakim"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Start Up - Maliyet Dağılımı</h3>
+                <div class="chart-container">
+                    <canvas id="chartStartup"></canvas>
+                </div>
+            </div>
         </div>
 
         <nav class="nav-tabs">
@@ -716,6 +764,8 @@
 
         let projects = [];
         let activeTab = 1; // 1: Bakım & Onarım, 2: Start Up
+        let chartBakim = null;
+        let chartStartup = null;
         let currentPhotos = []; // { dataUrl, file } - önizleme ve yükleme için
         let currentProjectId = null;
         let editPhotoItems = []; // { type: 'existing', url } | { type: 'new', dataUrl, file } - sıralanabilir
@@ -827,6 +877,92 @@
                 photos: parsePhotos(p.photos)
             }));
             renderProjects();
+        }
+
+        const CHART_COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#30cfd0', '#a8edea', '#fed6e3', '#ff9a9e', '#fecfef', '#ffecd2', '#fcb69f', '#ff6e7f'];
+
+        function renderCharts() {
+            const bakimProjects = projects.filter(p => (p.job_class ?? 1) === 1);
+            const startupProjects = projects.filter(p => (p.job_class ?? 1) === 2);
+
+            const bakimData = aggregateByJobType(bakimProjects);
+            const startupData = aggregateByJobType(startupProjects);
+
+            if (chartBakim) chartBakim.destroy();
+            if (chartStartup) chartStartup.destroy();
+
+            if (bakimData.labels.length > 0) {
+                chartBakim = new Chart(document.getElementById('chartBakim'), {
+                    type: 'pie',
+                    data: {
+                        labels: bakimData.labels,
+                        datasets: [{
+                            data: bakimData.values,
+                            backgroundColor: CHART_COLORS.slice(0, bakimData.labels.length),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                        const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                        return `${ctx.label}: ${Number(ctx.raw).toLocaleString('tr-TR')} ₺ (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (startupData.labels.length > 0) {
+                chartStartup = new Chart(document.getElementById('chartStartup'), {
+                    type: 'pie',
+                    data: {
+                        labels: startupData.labels,
+                        datasets: [{
+                            data: startupData.values,
+                            backgroundColor: CHART_COLORS.slice(0, startupData.labels.length),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                        const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                        return `${ctx.label}: ${Number(ctx.raw).toLocaleString('tr-TR')} ₺ (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function aggregateByJobType(projectList) {
+            const map = {};
+            for (const p of projectList) {
+                const key = p.job_type || 'Diğer';
+                map[key] = (map[key] || 0) + (p.cost || 0);
+            }
+            const labels = Object.keys(map);
+            const values = labels.map(l => map[l]);
+            return { labels, values };
         }
 
         // Yeni İş Modal İşlemleri
@@ -1150,6 +1286,7 @@
         }
 
         function renderProjects() {
+            renderCharts();
             const grid = document.getElementById('projectsGrid');
             const filteredProjects = projects
                 .filter(p => (p.job_class ?? 1) === activeTab)
