@@ -881,6 +881,45 @@
 
         const CHART_COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#30cfd0', '#a8edea', '#fed6e3', '#ff9a9e', '#fecfef', '#ffecd2', '#fcb69f', '#ff6e7f'];
 
+        function formatCostK(value) {
+            if (value >= 1000) {
+                const k = value / 1000;
+                return (k % 1 === 0 ? k : k.toFixed(1)) + 'k';
+            }
+            return String(Math.round(value));
+        }
+
+        function createChartOptions(values) {
+            const total = values.reduce((a, b) => a + b, 0);
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            generateLabels: (chart) => {
+                                const data = chart.data;
+                                return data.labels.map((label, i) => ({
+                                    text: `${label}: ${formatCostK(data.datasets[0].data[i])} ₺ (${((data.datasets[0].data[i] / total) * 100).toFixed(1)}%)`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    index: i
+                                }));
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                return `${ctx.label}: ${formatCostK(ctx.raw)} ₺ (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
         function renderCharts() {
             const bakimProjects = projects.filter(p => (p.job_class ?? 1) === 1);
             const startupProjects = projects.filter(p => (p.job_class ?? 1) === 2);
@@ -903,22 +942,7 @@
                             borderColor: '#fff'
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'right' },
-                            tooltip: {
-                                callbacks: {
-                                    label: (ctx) => {
-                                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                                        const pct = ((ctx.raw / total) * 100).toFixed(1);
-                                        return `${ctx.label}: ${Number(ctx.raw).toLocaleString('tr-TR')} ₺ (${pct}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    options: createChartOptions(bakimData.values)
                 });
             }
 
@@ -934,22 +958,7 @@
                             borderColor: '#fff'
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'right' },
-                            tooltip: {
-                                callbacks: {
-                                    label: (ctx) => {
-                                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                                        const pct = ((ctx.raw / total) * 100).toFixed(1);
-                                        return `${ctx.label}: ${Number(ctx.raw).toLocaleString('tr-TR')} ₺ (${pct}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    options: createChartOptions(startupData.values)
                 });
             }
         }
