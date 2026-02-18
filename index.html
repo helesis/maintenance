@@ -988,15 +988,25 @@
         }
 
         function renderCharts() {
-            const bakimJobTypes = jobTypes.filter(j => j.job_class === 1 && (j.job_total_cost || 0) > 0).sort((a, b) => b.job_total_cost - a.job_total_cost);
-            const startupJobTypes = jobTypes.filter(j => j.job_class === 2 && (j.job_total_cost || 0) > 0).sort((a, b) => b.job_total_cost - a.job_total_cost);
+            // Bakım & Onarım: projelerden otomatik hesapla (job_type + cost toplamı)
+            const bakimProjects = projects.filter(p => (p.job_class ?? 1) === 1);
+            const bakimByJobType = bakimProjects.reduce((acc, p) => {
+                const key = p.job_type || 'Diğer';
+                acc[key] = (acc[key] || 0) + (p.cost || 0);
+                return acc;
+            }, {});
+            const bakimLabels = Object.keys(bakimByJobType);
+            const bakimValues = Object.values(bakimByJobType);
+            const bakimSorted = bakimLabels.map((l, i) => ({ label: l, value: bakimValues[i] })).sort((a, b) => b.value - a.value);
+            const bakimLabelsSorted = bakimSorted.map(x => x.label);
+            const bakimValuesSorted = bakimSorted.map(x => x.value);
 
-            const bakimLabels = bakimJobTypes.map(j => j.name);
-            const bakimValues = bakimJobTypes.map(j => j.job_total_cost);
+            // Start Up: job_types tablosundan (mevcut mantık)
+            const startupJobTypes = jobTypes.filter(j => j.job_class === 2 && (j.job_total_cost || 0) > 0).sort((a, b) => b.job_total_cost - a.job_total_cost);
             const startupLabels = startupJobTypes.map(j => j.name);
             const startupValues = startupJobTypes.map(j => j.job_total_cost);
 
-            const bakimTotal = bakimValues.reduce((a, b) => a + b, 0);
+            const bakimTotal = bakimValuesSorted.reduce((a, b) => a + b, 0);
             const startupTotal = startupValues.reduce((a, b) => a + b, 0);
 
             document.getElementById('chartBakimTitle').textContent = `Bakım & Onarım - ∑ Toplam Tutar: ${formatCostK(bakimTotal)} ₺`;
@@ -1005,19 +1015,19 @@
             if (chartBakim) chartBakim.destroy();
             if (chartStartup) chartStartup.destroy();
 
-            if (bakimLabels.length > 0) {
+            if (bakimLabelsSorted.length > 0) {
                 chartBakim = new Chart(document.getElementById('chartBakim'), {
                     type: 'pie',
                     data: {
-                        labels: bakimLabels,
+                        labels: bakimLabelsSorted,
                         datasets: [{
-                            data: bakimValues,
-                            backgroundColor: CHART_COLORS.slice(0, bakimLabels.length),
+                            data: bakimValuesSorted,
+                            backgroundColor: CHART_COLORS.slice(0, bakimLabelsSorted.length),
                             borderWidth: 2,
                             borderColor: '#fff'
                         }]
                     },
-                    options: createChartOptions(bakimValues),
+                    options: createChartOptions(bakimValuesSorted),
                     plugins: [ChartDataLabels]
                 });
             }
