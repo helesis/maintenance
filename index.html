@@ -1464,7 +1464,10 @@
                 return costB - costA;
             });
             grid.innerHTML = sortedGroups.map(([jobType, projectsInGroup]) => {
-                const totalCost = jobTypeCostMap[jobType];
+                // Bakım & Onarım: projelerden hesapla; Start Up: job_types'tan
+                const totalCost = activeTab === 1
+                    ? projectsInGroup.reduce((s, p) => s + (p.cost || 0), 0)
+                    : jobTypeCostMap[jobType];
                 const headerText = totalCost != null && totalCost > 0
                     ? `${escapeHtml(jobType)} - ∑ ${Number(totalCost).toLocaleString('tr-TR')} ₺`
                     : escapeHtml(jobType);
